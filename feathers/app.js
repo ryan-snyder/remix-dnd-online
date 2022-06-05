@@ -1,5 +1,3 @@
-const path = require('path');
-const favicon = require('serve-favicon');
 const compress = require('compression');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -17,7 +15,9 @@ const appHooks = require('./app.hooks');
 const channels = require('./channels');
 
 const authentication = require('./authentication');
-
+const {
+    createRequestHandler,
+  } = require("@remix-run/express");
 const app = express(feathers());
 
 // Load app configuration
@@ -28,9 +28,6 @@ app.use(cors());
 app.use(compress());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(favicon(path.join(app.get('public'), 'favicon.ico')));
-// Host the public folder
-app.use('/', express.static(app.get('public')));
 
 // Set up Plugins and providers
 app.configure(express.rest());
@@ -49,5 +46,20 @@ app.use(express.notFound());
 app.use(express.errorHandler({ logger }));
 
 app.hooks(appHooks);
-
+// needs to handle all verbs (GET, POST, etc.)
+app.all(
+    "*",
+    createRequestHandler({
+      // `remix build` and `remix dev` output files to a build directory, you need
+      // to pass that build to the request handler
+      build: require("../build"),
+  
+      // return anything you want here to be available as `context` in your
+      // loaders and actions. This is where you can bridge the gap between Remix
+      // and your server
+      getLoadContext(req, res) {
+        return {};
+      },
+    })
+  );
 module.exports = app;

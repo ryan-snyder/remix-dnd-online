@@ -24,7 +24,7 @@ interface ActionData {
     password?: string;
   };
 }
-
+//find out how to pass feathers context to this
 export const action: ActionFunction = async ({ request }) => {
   const formData = await request.formData();
   const email = formData.get("email");
