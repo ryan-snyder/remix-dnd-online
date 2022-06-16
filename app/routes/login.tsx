@@ -8,11 +8,12 @@ import { Form, Link, useActionData, useSearchParams } from "@remix-run/react";
 import * as React from "react";
 
 import { createUserSession, getUserId } from "~/session.server";
-import { verifyLogin } from "~/models/user.server";
+import { authUser} from "~/models/user.server";
 import { safeRedirect, validateEmail } from "~/utils";
 
-export const loader: LoaderFunction = async ({ request }) => {
-  const userId = await getUserId(request);
+export const loader: LoaderFunction = async ({ context }) => {
+  const { req } = context;
+  const userId = await getUserId(req);
   if (userId) return redirect("/");
   return json({});
 };
@@ -24,12 +25,10 @@ interface ActionData {
   };
 }
 
-export const action: ActionFunction = async ({ request }) => {
-  const formData = await request.formData();
-  const email = formData.get("email");
-  const password = formData.get("password");
-  const redirectTo = safeRedirect(formData.get("redirectTo"), "/notes");
-  const remember = formData.get("remember");
+export const action: ActionFunction = async ({ context }) => {
+  const { req } = context;
+  const { email, password,  remember, redirectTo }= req.body;
+  const safeRedirectTo = safeRedirect(redirectTo, "/");
 
   if (!validateEmail(email)) {
     return json<ActionData>(
@@ -52,20 +51,19 @@ export const action: ActionFunction = async ({ request }) => {
     );
   }
 
-  const user = await verifyLogin(email, password);
-
+  const { user, accessToken } = await authUser(email, password);
   if (!user) {
     return json<ActionData>(
       { errors: { email: "Invalid email or password" } },
       { status: 400 }
     );
   }
-
   return createUserSession({
-    request,
-    userId: user.id,
+    request: req,
+    userId: user._id,
+    token: accessToken,
     remember: remember === "on" ? true : false,
-    redirectTo,
+    redirectTo: safeRedirectTo,
   });
 };
 
@@ -77,7 +75,7 @@ export const meta: MetaFunction = () => {
 
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo") || "/notes";
+  const redirectTo = searchParams.get("redirectTo") || "/characters";
   const actionData = useActionData() as ActionData;
   const emailRef = React.useRef<HTMLInputElement>(null);
   const passwordRef = React.useRef<HTMLInputElement>(null);

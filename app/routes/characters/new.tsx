@@ -13,10 +13,11 @@ type ActionData = {
   };
 };
 
-export const action: ActionFunction = async ({ request }) => {
-  const userId = await requireUserId(request);
+export const action: ActionFunction = async ({ context }) => {
+  const { req } = context;
+  const userId = await requireUserId(req);
 
-  const formData = await request.formData();
+  const formData = await req.formData();
   const title = formData.get("title");
   const body = formData.get("body");
 
@@ -36,7 +37,7 @@ export const action: ActionFunction = async ({ request }) => {
 
   const note = await createNote({ title, body, userId });
 
-  return redirect(`/notes/${note.id}`);
+  return redirect(`/characters/${note.id}`);
 };
 
 export default function NewNotePage() {

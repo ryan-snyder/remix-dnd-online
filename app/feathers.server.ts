@@ -3,20 +3,19 @@ import feather from '@feathersjs/feathers';
 import socketio from '@feathersjs/socketio-client';
 import auth from '@feathersjs/authentication-client';
 
-// not sure about this stuff
-// should this go into our root.tsx file? 
-const socket = io('https://ryan-snyder-remix-dnd-online-w44qq64j35g4v-3030.githubpreview.dev/');
+import type {Application} from "@feathersjs/feathers";
+const socket = io('http://localhost:3000');
 
 const client = feather();
 
 client.configure(socketio(socket));
 
-//change this to not rely on window.localStorage
-// as this will break in remix
-if(typeof document !== "undefined") {
-    client.configure(auth({
-        storage: window.localStorage
-    }));
-}
+client.configure(auth());
 
-export default client;
+client.reAuthenticate().then(() => {
+    console.log('Authenticated connection...');
+}).catch((e) => {
+    console.log('failed to authenticate but its fine');
+    //if we get an error, check if we've got a token in our session storage
+})
+export { client };

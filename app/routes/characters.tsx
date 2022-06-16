@@ -4,16 +4,19 @@ import { Form, Link, NavLink, Outlet, useLoaderData } from "@remix-run/react";
 
 import { requireUserId } from "~/session.server";
 import { useUser } from "~/utils";
-import { getNoteListItems } from "~/models/note.server";
+import { getCharactersByUser } from "~/models/character.server";
+import { Path } from "history";
+import { ReactChild, ReactFragment, ReactPortal, ReactNode } from "react";
 
 type LoaderData = {
-  noteListItems: Awaited<ReturnType<typeof getNoteListItems>>;
+  characters: Awaited<ReturnType<typeof getCharactersByUser>>;
 };
 
-export const loader: LoaderFunction = async ({ request }) => {
-  const userId = await requireUserId(request);
-  const noteListItems = await getNoteListItems({ userId });
-  return json<LoaderData>({ noteListItems });
+export const loader: LoaderFunction = async ({ context }) => {
+  const { req } = context;
+  const userId = await requireUserId(req);
+  const { data } = await getCharactersByUser();
+  return json<LoaderData>({ characters: data });
 };
 
 export default function NotesPage() {
@@ -24,7 +27,7 @@ export default function NotesPage() {
     <div className="flex h-full min-h-screen flex-col">
       <header className="flex items-center justify-between bg-slate-800 p-4 text-white">
         <h1 className="text-3xl font-bold">
-          <Link to=".">Notes</Link>
+          <Link to=".">Characters</Link>
         </h1>
         <p>{user.email}</p>
         <Form action="/logout" method="post">
@@ -40,16 +43,16 @@ export default function NotesPage() {
       <main className="flex h-full bg-white">
         <div className="h-full w-80 border-r bg-gray-50">
           <Link to="new" className="block p-4 text-xl text-blue-500">
-            + New Note
+            + New Character
           </Link>
 
           <hr />
 
-          {data.noteListItems.length === 0 ? (
-            <p className="p-4">No notes yet</p>
+          {data.characters.length === 0 ? (
+            <p className="p-4">No characters yet</p>
           ) : (
             <ol>
-              {data.noteListItems.map((note) => (
+              {data.characters.map((note: any) => (
                 <li key={note.id}>
                   <NavLink
                     className={({ isActive }) =>

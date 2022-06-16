@@ -12,6 +12,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData,
 } from "@remix-run/react";
 import type { Application } from "@feathersjs/feathers";
 import feather from '@feathersjs/feathers';
@@ -20,8 +21,7 @@ import auth from '@feathersjs/authentication-client';
 import io from 'socket.io-client';
 import { FeathersProvider } from "./context";
 import tailwindStylesheetUrl from "./styles/tailwind.css";
-
-import { getUser } from "./session.server";
+import { getUser} from "./session.server";
 
 export const links: LinksFunction = () => {
   return [{ rel: "stylesheet", href: tailwindStylesheetUrl }];
@@ -37,38 +37,29 @@ type LoaderData = {
   user: Awaited<ReturnType<typeof getUser>>;
 };
 
-export const loader: LoaderFunction = async ({ request }) => {
+export const loader: LoaderFunction = async ({ context }) => {
+  const { req } = context;
   return json<LoaderData>({
-    user: await getUser(request),
+    user: await getUser(req)
   });
 };
 
 export default function App() {
-  const [ feathers, setFeathers ] = useState<Application<any>>();
-
+  const [ feathers, setFeathers ] = useState<Application>();
+  const user = useLoaderData();
   useEffect(() => {
     console.log('Loading feathers');
-    const socket = io('https://ryan-snyder-remix-dnd-online-w44qq64j35g4v-3030.githubpreview.dev/');
+    const socket = io();
 
     const client = feather();
 
     client.configure(socketio(socket));
-
-    //change this to not rely on window.localStorage
-    // as this will break in remix
-    if(typeof document !== "undefined") {
-        client.configure(auth({
+    client.configure(auth({
             storage: window.localStorage
-        }));
-    }
-    console.log(client);
+    }));
     setFeathers(client);
-    client.authenticate().then(() => {
-      console.log('signed in')
-    }).catch(() => {
-      console.log('logged in failed')
-    })
   }, [])
+
 
   return (
     <html lang="en" className="h-full">

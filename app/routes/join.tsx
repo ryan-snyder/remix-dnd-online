@@ -6,14 +6,15 @@ import type {
 import { json, redirect } from "@remix-run/node";
 import { Form, Link, useActionData, useSearchParams } from "@remix-run/react";
 import * as React from "react";
-
-import { getUserId, createUserSession } from "~/session.server";
-
-import { createUser, getUserByEmail } from "~/models/user.server";
 import { safeRedirect, validateEmail } from "~/utils";
+import { useFeathers } from "~/context";
+import { createUserSession, getUserId} from "~/session.server";
+import { client } from "~/feathers.server";
+import { createAndAuthUser } from "~/models/user.server";
 
-export const loader: LoaderFunction = async ({ request }) => {
-  const userId = await getUserId(request);
+export const loader: LoaderFunction = async ({ context }) => {
+  const { req } = context;
+  const userId = await getUserId(req);
   if (userId) return redirect("/");
   return json({});
 };
@@ -22,15 +23,14 @@ interface ActionData {
   errors: {
     email?: string;
     password?: string;
+    general?: string;
   };
 }
-//find out how to pass feathers context to this
-export const action: ActionFunction = async ({ request }) => {
-  const formData = await request.formData();
-  const email = formData.get("email");
-  const password = formData.get("password");
-  const redirectTo = safeRedirect(formData.get("redirectTo"), "/");
 
+export const action: ActionFunction = async ({ context }) => {
+  const { req } = context;
+  const { email, password, redirectTo }= req.body;
+  const safeRedirectTo = safeRedirect(redirectTo, "/");
   if (!validateEmail(email)) {
     return json<ActionData>(
       { errors: { email: "Email is invalid" } },
@@ -40,33 +40,25 @@ export const action: ActionFunction = async ({ request }) => {
 
   if (typeof password !== "string" || password.length === 0) {
     return json<ActionData>(
-      { errors: { password: "Password is required" } },
+      {errors: { password: "Password is required" } },
       { status: 400 }
     );
   }
 
   if (password.length < 8) {
     return json<ActionData>(
-      { errors: { password: "Password is too short" } },
+      {errors: { password: "Password is too short" } },
       { status: 400 }
     );
   }
-
-  const existingUser = await getUserByEmail(email);
-  if (existingUser) {
-    return json<ActionData>(
-      { errors: { email: "A user already exists with this email" } },
-      { status: 400 }
-    );
-  }
-
-  const user = await createUser(email, password);
-
+  const { user, accessToken } = await createAndAuthUser(email, password);
+  //store the correspond user id in a session cookie
   return createUserSession({
-    request,
-    userId: user.id,
+    request: req,
+    userId: user._id,
+    token: accessToken,
     remember: false,
-    redirectTo,
+    redirectTo: safeRedirectTo,
   });
 };
 
@@ -80,6 +72,7 @@ export default function Join() {
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get("redirectTo") ?? undefined;
   const actionData = useActionData() as ActionData;
+  const feathers = useFeathers();
   const emailRef = React.useRef<HTMLInputElement>(null);
   const passwordRef = React.useRef<HTMLInputElement>(null);
 
@@ -148,7 +141,6 @@ export default function Join() {
               )}
             </div>
           </div>
-
           <input type="hidden" name="redirectTo" value={redirectTo} />
           <button
             type="submit"
@@ -156,6 +148,11 @@ export default function Join() {
           >
             Create Account
           </button>
+          {actionData?.errors?.general && (
+                <div className="pt-1 text-red-700" id="general-error">
+                  {actionData.errors.general}
+                </div>
+              )}
           <div className="flex items-center justify-center">
             <div className="text-center text-sm text-gray-500">
               Already have an account?{" "}

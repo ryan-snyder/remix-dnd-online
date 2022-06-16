@@ -3,11 +3,11 @@ import { createContext, useContext } from "react";
 import type { Application } from "@feathersjs/feathers";
 
 type ProviderProps = {
-  feathers: Application<any> | undefined;
+  feathers: Application | undefined;
   children: ReactNode;
 };
 
-const context = createContext<Application<any> | undefined>(undefined);
+const context = createContext<Application | undefined>(undefined);
 
 export function useFeathers() {
   return useContext(context);

@@ -3,9 +3,10 @@ import type { LoaderFunction } from "@remix-run/node";
 
 import { prisma } from "~/db.server";
 
-export const loader: LoaderFunction = async ({ request }) => {
+export const loader: LoaderFunction = async ({ context }) => {
+  const { req } = context;
   const host =
-    request.headers.get("X-Forwarded-Host") ?? request.headers.get("host");
+    req.headers.get("X-Forwarded-Host") ?? req.headers.get("host");
 
   try {
     const url = new URL("/", `http://${host}`);
